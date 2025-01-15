@@ -11,8 +11,8 @@ module Cover
 
     private def peek(pid : LibC::PidT, pointer : Void*) : LibC::SizeT
       aligned = align(pointer)
-      value = LibC.ptrace(LibC::PTRACE_PEEKTEXT, pid, aligned, nil)
-      value.to_u!
+      value = LibC.ptrace(LibC::PTraceRequest::PeekText, pid, aligned, nil)
+      value.to_unsigned!
     end
 
     def poke_byte(pid : LibC::PidT, pointer : Void*, value : UInt8) : UInt8
@@ -35,7 +35,7 @@ module Cover
     private def poke(pid : LibC::PidT, pointer : Void*, value : LibC::SizeT) : Nil
       aligned = align(pointer)
       data = Pointer(Void).new(value)
-      LibC.ptrace(LibC::PTRACE_POKETEXT, pid, aligned, data)
+      LibC.ptrace(LibC::PTraceRequest::PokeText, pid, aligned, data)
     end
 
     def align(pointer : Void*) : Void*
@@ -43,23 +43,23 @@ module Cover
       Pointer(Void).new(address)
     end
 
-    private def byte_at(value : UInt32, index : Int32) : UInt8
+    private def byte_at(value : UInt32, index : Int) : UInt8
       bytes = value.unsafe_as(StaticArray(UInt8, 4))
       bytes[index]
     end
 
-    private def byte_at(value : UInt64, index : Int32) : UInt8
+    private def byte_at(value : UInt64, index : Int) : UInt8
       bytes = value.unsafe_as(StaticArray(UInt8, 8))
       bytes[index]
     end
 
-    private def replace_byte(value : UInt32, index : Int32, byte : UInt8) : UInt32
+    private def replace_byte(value : UInt32, index : Int, byte : UInt8) : UInt32
       bytes = value.unsafe_as(StaticArray(UInt8, 4))
       bytes[index] = byte
       bytes.unsafe_as(UInt32)
     end
 
-    private def replace_byte(value : UInt64, index : Int32, byte : UInt8) : UInt64
+    private def replace_byte(value : UInt64, index : Int, byte : UInt8) : UInt64
       bytes = value.unsafe_as(StaticArray(UInt8, 8))
       bytes[index] = byte
       bytes.unsafe_as(UInt64)
