@@ -1,0 +1,13 @@
+name: cover
+version: 0.1.0
+
+authors:
+  - Michael Miller <icy.arctic.fox@gmail.com>
+
+targets:
+  cover:
+    main: src/cover.cr
+
+crystal: '>= 1.14.0'
+
+license: MIT
