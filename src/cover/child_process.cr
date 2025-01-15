@@ -23,7 +23,8 @@ module Cover
     end
 
     def set_breakpoint(address : Void*) : Nil
-      @modifications.put_if_absent do
+      @modifications.put_if_absent(address) do
+        Log.debug { "Setting breakpoint at 0x#{address.address.to_s(16)}" }
         original_byte = Memory.peek_byte(@pid, address)
         Memory.poke_byte(@pid, address, 0xcc)
         original_byte
@@ -32,6 +33,7 @@ module Cover
 
     def remove_breakpoint(address : Void*) : Bool
       return false unless original_byte = @modifications.delete(address)
+      Log.debug { "Removing breakpoint at 0x#{address.address.to_s(16)}" }
       Memory.poke_byte(@pid, address, original_byte)
       true
     end
