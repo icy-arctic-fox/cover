@@ -1,6 +1,7 @@
 module Cover
   class ChildProcess
-    Log = Cover::Log.for(self)
+    BREAKPOINT = 0xcc_u8
+    Log        = Cover::Log.for(self)
 
     getter pid : LibC::PidT
 
@@ -12,47 +13,55 @@ module Cover
       @modifications = modifications.dup
     end
 
-    def continue
+    def continue : Nil
       Log.debug { "Continuing child process #{pid}" }
       LibC.ptrace(LibC::PTraceRequest::Continue, @pid, nil, nil)
     end
 
-    def stop
+    def stop : Nil
       Log.debug { "Stopping child process #{pid}" }
       LibC.ptrace(LibC::PTraceRequest::Kill, @pid, nil, nil)
     end
 
     def set_breakpoint(address : Void*) : Nil
       @modifications.put_if_absent(address) do
-        Log.debug { "Setting breakpoint at 0x#{address.address.to_s(16)}" }
-        original_byte = Memory.peek_byte(@pid, address)
-        Memory.poke_byte(@pid, address, 0xcc)
-        original_byte
+        # Log.debug { "Setting breakpoint at 0x#{address.address.to_s(16)}" }
+        puts "Setting breakpoint at 0x#{address.address.to_s(16)}"
+        Memory.poke_byte(@pid, address, BREAKPOINT)
       end
     end
 
     def remove_breakpoint(address : Void*) : Bool
       return false unless original_byte = @modifications.delete(address)
+      return false if original_byte != BREAKPOINT
       Log.debug { "Removing breakpoint at 0x#{address.address.to_s(16)}" }
       Memory.poke_byte(@pid, address, original_byte)
       true
     end
 
-    def remove_hit_breakpoint(address : Void*) : Bool
-      return false unless remove_breakpoint(address)
+    def remove_hit_breakpoint : Bool
+      return false unless remove_breakpoint(instruction_pointer)
       decrement_instruction_pointer
       true
     end
 
     def registers : LibC::UserRegs
       registers = LibC::UserRegs.new
-      LibC.ptrace(LibC::PTRACE_GETREGS, @pid, nil, pointerof(registers))
+      Errno.value = :none
+      result = LibC.ptrace(LibC::PTraceRequest::GetRegisters, @pid, nil, pointerof(registers))
+      raise RuntimeError.from_os_error("ptrace getregs", Errno.value) if result == -1
       registers
     end
 
     def registers=(registers : LibC::UserRegs)
-      LibC.ptrace(LibC::PTRACE_SETREGS, @pid, nil, pointerof(registers))
+      Errno.value = :none
+      result = LibC.ptrace(LibC::PTraceRequest::SetRegisters, @pid, nil, pointerof(registers))
+      raise RuntimeError.from_os_error("ptrace setregs", Errno.value) if result == -1
       registers
+    end
+
+    def instruction_pointer : Void*
+      Pointer(Void).new(registers.rip)
     end
 
     private def decrement_instruction_pointer

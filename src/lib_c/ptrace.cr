@@ -54,6 +54,20 @@ lib LibC
     SuspendSecComp = 1 << 21
   end
 
+  @[Flags]
+  enum WaitArg : UInt32
+    NoHang    = 0x00000001 # WNOHANG
+    Untraced  = 0x00000002 # WUNTRACED
+    Stopped   = Untraced   # WSTOPPED
+    Exited    = 0x00000004 # WEXITED
+    Continued = 0x00000008 # WCONTINUED
+    NoWait    = 0x01000000 # WNOWAIT
+
+    NoThread = 0x20000000 # __WNOTHREAD
+    All      = 0x40000000 # __WALL
+    Clone    = 0x80000000 # __WCLONE
+  end
+
   struct UserRegs
     r15 : UInt64
     r14 : UInt64

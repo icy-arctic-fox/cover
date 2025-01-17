@@ -11,8 +11,12 @@ module Cover
 
     private def peek(pid : LibC::PidT, pointer : Void*) : LibC::SizeT
       aligned = align(pointer)
+      Errno.value = :none
       value = LibC.ptrace(LibC::PTraceRequest::PeekText, pid, aligned, nil)
-      value.to_unsigned!
+      if value == -1 && !Errno.value.none?
+        raise RuntimeError.from_os_error("ptrace peek", Errno.value)
+      end
+      value.to_unsigned!.tap { |b| puts "PEEK #{pointer} -> #{b.to_s(16)}" }
     end
 
     def poke_byte(pid : LibC::PidT, pointer : Void*, value : UInt8) : UInt8
@@ -35,11 +39,16 @@ module Cover
     private def poke(pid : LibC::PidT, pointer : Void*, value : LibC::SizeT) : Nil
       aligned = align(pointer)
       data = Pointer(Void).new(value)
-      LibC.ptrace(LibC::PTraceRequest::PokeText, pid, aligned, data)
+      Errno.value = :none
+      result = LibC.ptrace(LibC::PTraceRequest::PokeText, pid, aligned, data)
+      if result == -1 && !Errno.value.none?
+        raise RuntimeError.from_os_error("ptrace poke", Errno.value)
+      end
+      puts "POKE #{pointer} <- #{value.to_s(16)}"
     end
 
     def align(pointer : Void*) : Void*
-      address = (pointer.address // sizeof(LibC::SizeT)) * sizeof(LibC::SizeT)
+      address = pointer.address // sizeof(LibC::SizeT) * sizeof(LibC::SizeT)
       Pointer(Void).new(address)
     end
 
